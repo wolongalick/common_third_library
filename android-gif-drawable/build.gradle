@@ -1,0 +1,91 @@
+plugins {
+	id "pl.droidsonroids.ui.test" version "2.0.0"
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'jacoco-android'
+apply from: 'gradle-mvn-push.gradle'
+
+version = "1.0"
+group = GROUP
+
+android {
+	compileSdkVersion 27
+
+	compileOptions {
+		sourceCompatibility JavaVersion.VERSION_1_7
+		targetCompatibility JavaVersion.VERSION_1_7
+	}
+
+	defaultConfig {
+		versionName "1.0"
+		minSdkVersion 15
+		targetSdkVersion 27
+		consumerProguardFiles 'consumer-proguard-rules.pro'
+		testInstrumentationRunner 'android.support.test.runner.AndroidJUnitRunner'
+		externalNativeBuild {
+			cmake {
+				arguments "-DANDROID_PLATFORM=android-15"
+				cFlags '-std=c11', '-Weverything', '-Wall'
+				if (isDebugBuild()) {
+					cFlags '-DDEBUG', '-g'
+				} else {
+					cFlags '-DNDEBUG', '-Os', '-g0', '-fvisibility=hidden'
+				}
+			}
+		}
+		ndk {
+			//选择要添加的对应cpu类型的.so库。
+			abiFilters 'armeabi-v7a','x86'
+		}
+	}
+	externalNativeBuild {
+		cmake {
+			path 'src/main/c/CMakeLists.txt'
+		}
+	}
+	testBuildType 'release'
+	signingConfigs {
+		release {
+			storeFile new File("$System.env.HOME/.android/debug.keystore")
+			storePassword 'android'
+			keyAlias 'androiddebugkey'
+			keyPassword 'android'
+		}
+	}
+	buildTypes {
+		release {
+			signingConfig signingConfigs.release
+			if (isDebugBuild()) {
+				debuggable true
+				jniDebuggable true
+			}
+		}
+	}
+	testOptions {
+		unitTests.returnDefaultValues = true
+	}
+}
+
+dependencies {
+	compileOnly "com.android.support:support-annotations:27.1.1"
+
+	implementation 'com.amitshekhar.android:glide-bitmap-pool:0.0.1'
+}
+
+jacocoAndroidUnitTestReport {
+	html.enabled true
+	xml.enabled true
+}
+
+def isDebugBuild() {
+	!gradle.startParameter.taskNames.contains("uploadArchives") && "1.0".contains("SNAPSHOT")
+}
+
+task archiveSymbols(type: Tar) {
+	from new File(buildDir, 'intermediates/cmake/release/obj')
+	baseName = "$POM_ARTIFACT_ID-symbols"
+	destinationDir = new File(buildDir, 'libs')
+	extension = 'tar.gz'
+	compression = Compression.GZIP
+}
